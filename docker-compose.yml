@@ -1,0 +1,122 @@
+version: "3.9"
+
+networks:
+  local-net:
+    name: local-net
+
+volumes:
+  pegawai_data:
+  keterangan_data:
+
+
+services:
+  pegawai_api:
+    container_name: pegawai_api
+    image: torinouq/ci-core:dev-nats
+    pull_policy: always
+    environment:
+      MYSQL_HOST: ${PEGAWAI_HOST}
+      MYSQL_DATABASE: ${PEGAWAI_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - 7004:80
+    volumes:
+      - ./pegawai/src:/var/www/html/src
+      - ./pegawai/src/resources/file:/var/www/html/src/resources/file/
+    depends_on:
+      - ${PEGAWAI_HOST}
+    networks:
+      - local-net
+
+  pegawai_db:
+    container_name: pegawai_db
+    image: mariadb
+    restart: always
+    environment:
+      MYSQL_DATABASE: ${PEGAWAI_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - pegawai_data:/var/lib/mysql
+    ports:
+      - 33062:3306
+    networks:
+      - local-net
+
+  keterangan_api:
+    container_name: keterangan_api
+    image: torinouq/ci-core:dev-nats
+    pull_policy: always
+    environment:
+      MYSQL_HOST: ${KET_HOST}
+      MYSQL_DATABASE: ${KET_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - 7001:80
+    volumes:
+      - ./keterangan/src:/var/www/html/src
+      - ./keterangan/src/resources/file:/var/www/html/src/resources/file/
+    depends_on:
+      - ${KET_HOST}
+    networks:
+      - local-net
+
+  keterangan_db:
+    container_name: keterangan_db
+    image: mariadb
+    restart: always
+    environment:
+      MYSQL_DATABASE: ${KET_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - keterangan_data:/var/lib/mysql
+    ports:
+      - 33063:3306
+    networks:
+      - local-net
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: "myadmin"
+    environment:
+      PMA_VERBOSES: "EMPL_DB, KET_DB"
+      PMA_HOSTS: "pegawai_db, keterangan_db"
+      PMA_PORTS: "3306"
+      MAX_EXECUTION_TIME: 900
+      UPLOAD_LIMIT: 1G
+    ports:
+      - "7009:80"
+    volumes:
+      - /sessions
+    networks:
+      - local-net
+
+  # php-subs-1:
+  #   image: php:8.1-cli
+  #   container_name: php-sub-1
+  #   volumes:
+  #     - ./subs/subs1:/app
+
+  nats:
+    image: nats
+    ports:
+      - "8222:8222"
+      - "4222:4222"
+    volumes:
+      - "./nats/data/single:/data" # Menyimpan data JetStream di lokal
+    command: "-js -sd /data --http_port 8222"
+    networks: [ "local-net" ]
+
+  natsbox:
+    container_name: "natsbox"
+    image: natsio/nats-box
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./creds:/root/creds
+    networks: [ "local-net" ]
