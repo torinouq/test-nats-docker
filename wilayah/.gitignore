@@ -1,0 +1,6 @@
+# Mengabaikan semua
+*
+
+# Pengecualian untuk folder 'src' dan file 'Dockerfile'
+!Dockerfile
+!.gitignore
